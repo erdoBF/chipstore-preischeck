@@ -428,6 +428,9 @@ def report_summary(groups):
     }
 
 
+TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢"}
+
+
 def teams_clip(text, width):
     text = str(text or "")
     if len(text) <= width:
@@ -437,9 +440,74 @@ def teams_clip(text, width):
     return text[: width - 1] + "…"
 
 
-def teams_gap_table(gap_rows, limit=10):
+def row_key(r):
+    return r.get("gtin") or r.get("sku") or r.get("url") or r["name"]
+
+
+def teams_product_labels(rows):
+    labels = [short_name(r["name"]) for r in rows]
+    out = []
+    for label, r in zip(labels, rows):
+        if labels.count(label) > 1:
+            label = f"{label[:14].rstrip()}… {eur(r['price'])}"
+        out.append(label)
+    return out
+
+
+def gap_change_status(r, prev_gap):
+    if not prev_gap:
+        return "red"
+    old = prev_gap.get(row_key(r))
+    if not old:
+        return "red"
+    same = (
+        abs(old.get("diff", 0) - r["diff"]) <= 0.01
+        and abs(old.get("price", 0) - r["price"]) <= 0.01
+        and abs(old.get("best_total", 0) - r["best"]["total"]) <= 0.01
+    )
+    return "yellow" if same else "red"
+
+
+def build_teams_state(groups, generated):
+    gap = {
+        row_key(r): {"price": r["price"], "diff": r["diff"], "best_total": r["best"]["total"]}
+        for r in groups["gap"]
+    }
+    win = {
+        row_key(r): {
+            "price": r["price"],
+            "advantage": round(-r["diff"], 2),
+            "next_total": r["best"]["total"],
+        }
+        for r in groups["win"]
+    }
+    return {"date": generated.strftime("%Y-%m-%d"), "gap": gap, "win": win}
+
+
+def load_teams_state(out_dir, generated):
+    today = generated.date()
+    latest_path, latest_day = None, None
+    if not os.path.isdir(out_dir):
+        return None
+    for name in os.listdir(out_dir):
+        m = re.match(r"preischeck-(\d{4}-\d{2}-\d{2})\.state\.json$", name)
+        if not m:
+            continue
+        day = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+        if day >= today:
+            continue
+        if latest_day is None or day > latest_day:
+            latest_day = day
+            latest_path = os.path.join(out_dir, name)
+    if not latest_path:
+        return None
+    with open(latest_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def teams_gap_table(gap_rows, markers):
     """Fixed-width table for Teams (Markdown tables are not rendered in channel chat)."""
-    w_prod, w_chip, w_best, w_shop, w_diff = 32, 12, 12, 18, 10
+    w_prod, w_chip, w_best, w_shop, w_diff = 30, 12, 12, 18, 10
     header = "  ".join(
         [
             teams_clip("Produkt", w_prod),
@@ -450,11 +518,10 @@ def teams_gap_table(gap_rows, limit=10):
         ]
     )
     sep = "-" * len(header)
-    labels = [short_name(r["name"]) for r in gap_rows[:limit]]
+    labels = teams_product_labels(gap_rows)
     body = []
-    for label, r in zip(labels, gap_rows[:limit]):
-        if labels.count(label) > 1:
-            label = f"{label[:14].rstrip()}… {eur(r['price'])}"
+    for label, r, mark in zip(labels, gap_rows, markers):
+        label = f"{TEAMS_MARK[mark]} {label}"
         body.append(
             "  ".join(
                 [
@@ -469,9 +536,42 @@ def teams_gap_table(gap_rows, limit=10):
     return header, sep, body
 
 
-def render_teams_text(groups, generated):
+def teams_win_table(win_rows):
+    w_prod, w_chip, w_next, w_adv, w_shop = 30, 12, 12, 11, 18
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_chip),
+            teams_clip("Nächster", w_next),
+            teams_clip("Günstiger", w_adv),
+            teams_clip("Händler", w_shop),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(win_rows)
+    body = []
+    for label, r in zip(labels, win_rows):
+        label = f"{TEAMS_MARK['green']} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_chip),
+                    teams_clip(eur(r["best"]["total"]), w_next),
+                    teams_clip(eur(-r["diff"]), w_adv),
+                    teams_clip(r["best"]["merchant"], w_shop),
+                ]
+            )
+        )
+    return header, sep, body
+
+
+def render_teams_text(groups, generated, prev_state=None):
     s = report_summary(groups)
     stamp = generated.strftime("%d.%m.%Y")
+    prev_gap = (prev_state or {}).get("gap") or {}
+    prev_day = (prev_state or {}).get("date")
+    compare = f"Vergleich zum Vortag ({datetime.strptime(prev_day, '%Y-%m-%d').strftime('%d.%m.%Y')})." if prev_day else "Erster Lauf — alle Einträge in der Teurer-Tabelle gelten als neu."
     lines = [
         f"# Preischeck vom {stamp}",
         "",
@@ -489,12 +589,15 @@ def render_teams_text(groups, generated):
         f"- **Ohne belastbaren Eintrag:** {len(s['missing'])}",
         f"- **Datensätze prüfen:** {len(s['conflict'])}",
         f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
+        "",
+        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · 🟢 Bestpreis_",
     ]
     if s["gap"]:
-        header, sep, rows = teams_gap_table(s["gap"])
+        markers = [gap_change_status(r, prev_gap) for r in s["gap"]]
+        header, sep, rows = teams_gap_table(s["gap"], markers)
         lines += [
             "",
-            "## Größte Abstände zum günstigsten BestCheck-Angebot",
+            "## Teurer als BestCheck",
             "",
             "```",
             header,
@@ -502,11 +605,18 @@ def render_teams_text(groups, generated):
             *rows,
             "```",
         ]
-    if s["conflict"]:
+    if s["win"]:
+        header, sep, rows = teams_win_table(s["win"])
         lines += [
             "",
-            "## Hinweis",
-            f"**{len(s['conflict'])}** Datensätze vor Preisentscheidungen prüfen — Details im HTML-/PDF-Report.",
+            f"## Bestpreis, andere Händler sind teurer",
+            f"_{len(s['win'])} Artikel, sortiert nach dem Abstand zum nächstgünstigeren Angebot._",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
         ]
     lines += [
         "",
@@ -694,9 +804,13 @@ def main():
     teams_path = os.path.join(args.out, stem + ".teams.txt")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(render(groups, generated))
-    teams_text = render_teams_text(groups, generated)
+    prev_state = load_teams_state(args.out, generated)
+    teams_text = render_teams_text(groups, generated, prev_state)
     with open(teams_path, "w", encoding="utf-8") as f:
         f.write(teams_text)
+    state_path = os.path.join(args.out, stem + ".state.json")
+    with open(state_path, "w", encoding="utf-8") as f:
+        json.dump(build_teams_state(groups, generated), f, ensure_ascii=False, indent=2)
     if not args.no_pdf:
         print_pdf(html_path, pdf_path)
     summary = {k: len(v) for k, v in groups.items()}

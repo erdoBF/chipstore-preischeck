@@ -428,33 +428,90 @@ def report_summary(groups):
     }
 
 
+def teams_clip(text, width):
+    text = str(text or "")
+    if len(text) <= width:
+        return text + " " * (width - len(text))
+    if width <= 1:
+        return text[:width]
+    return text[: width - 1] + "…"
+
+
+def teams_gap_table(gap_rows, limit=10):
+    """Fixed-width table for Teams (Markdown tables are not rendered in channel chat)."""
+    w_prod, w_chip, w_best, w_shop, w_diff = 32, 12, 12, 18, 10
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_chip),
+            teams_clip("Günstigst.", w_best),
+            teams_clip("Händler", w_shop),
+            teams_clip("+Abstand", w_diff),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = [short_name(r["name"]) for r in gap_rows[:limit]]
+    body = []
+    for label, r in zip(labels, gap_rows[:limit]):
+        if labels.count(label) > 1:
+            label = f"{label[:14].rstrip()}… {eur(r['price'])}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_chip),
+                    teams_clip(eur(r["best"]["total"]), w_best),
+                    teams_clip(r["best"]["merchant"], w_shop),
+                    teams_clip(f"+{eur(r['diff'])}", w_diff),
+                ]
+            )
+        )
+    return header, sep, body
+
+
 def render_teams_text(groups, generated):
     s = report_summary(groups)
     stamp = generated.strftime("%d.%m.%Y")
     lines = [
-        f"Preischeck vom {stamp}",
+        f"# Preischeck vom {stamp}",
         "",
-        s["headline"],
+        "## Kurzfassung",
+        f"**{s['headline']}**",
+        "",
         s["body"],
         "",
-        (
-            f"Übersicht ({s['total']} Artikel): "
-            f"{len(s['gap'])} teurer · {len(s['win'])} Bestpreis · {len(s['tie'])} gleichauf · "
-            f"{len(s['exclusive'])} nur CHIP Store · {len(s['missing'])} ohne Eintrag · {len(s['conflict'])} prüfen"
-        ),
+        f"## Kennzahlen ({s['total']} Artikel)",
+        "",
+        f"- **Teurer als BestCheck:** {len(s['gap'])}",
+        f"- **Günstigstes Angebot:** {len(s['win'])}",
+        f"- **Geteilter Bestpreis:** {len(s['tie'])}",
+        f"- **Nur CHIP Store:** {len(s['exclusive'])}",
+        f"- **Ohne belastbaren Eintrag:** {len(s['missing'])}",
+        f"- **Datensätze prüfen:** {len(s['conflict'])}",
+        f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
     ]
     if s["gap"]:
-        lines += ["", "Größte Abstände zum günstigsten BestCheck-Angebot:"]
-        for r in s["gap"][:10]:
-            merchant = r["best"]["merchant"]
-            lines.append(
-                f"• {r['name']}: CHIP {eur(r['price'])} — günstigster {eur(r['best']['total'])} ({merchant}), +{eur(r['diff'])}"
-            )
+        header, sep, rows = teams_gap_table(s["gap"])
+        lines += [
+            "",
+            "## Größte Abstände zum günstigsten BestCheck-Angebot",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
     if s["conflict"]:
-        lines += ["", f"{len(s['conflict'])} Datensätze vor Preisentscheidungen prüfen (Details im HTML/PDF)."]
+        lines += [
+            "",
+            "## Hinweis",
+            f"**{len(s['conflict'])}** Datensätze vor Preisentscheidungen prüfen — Details im HTML-/PDF-Report.",
+        ]
     lines += [
         "",
-        f"Quelle: chipstore.de & bestcheck.de, {stamp} (Europe/Berlin). Endpreis inkl. Versand.",
+        "---",
+        f"_Quelle: chipstore.de & bestcheck.de · Stand {stamp} (Europe/Berlin) · Endpreis inkl. Versand_",
     ]
     return "\n".join(lines)
 

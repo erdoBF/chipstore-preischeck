@@ -397,11 +397,74 @@ def link(text, url):
     return f'<a href="{esc(url)}">{esc(text)}</a>' if url else esc(text)
 
 
-def render(groups, generated):
+def report_summary(groups):
     gap, tie, win = groups["gap"], groups["tie"], groups["win"]
     exclusive, missing, conflict = groups["exclusive"], groups["missing"], groups["conflict"]
     total = sum(len(v) for v in groups.values())
     gap_sum = sum(r["diff"] for r in gap)
+    top3 = ", ".join(short_name(r["name"]) for r in gap[:3])
+    headline = (
+        f"Bei {len(gap)} von {total} Artikeln seid ihr nicht der günstigste Anbieter"
+        if gap
+        else "Bei allen vergleichbaren Artikeln liegt der CHIP Store vorn"
+    )
+    body = (
+        f"Sobald BestCheck mindestens einen anderen Händler führt, liegt der CHIP Store bei {len(win)} Artikeln darunter, "
+        f"bei {len(tie)} gleichauf und bei {len(gap)} darüber. Die Abstände summieren sich ungewichtet auf {eur(gap_sum)}."
+        + (f" Am weitesten oben liegen {top3}." if gap else "")
+    )
+    return {
+        "gap": gap,
+        "tie": tie,
+        "win": win,
+        "exclusive": exclusive,
+        "missing": missing,
+        "conflict": conflict,
+        "total": total,
+        "gap_sum": gap_sum,
+        "headline": headline,
+        "body": body,
+        "top3": top3,
+    }
+
+
+def render_teams_text(groups, generated):
+    s = report_summary(groups)
+    stamp = generated.strftime("%d.%m.%Y")
+    lines = [
+        f"Preischeck vom {stamp}",
+        "",
+        s["headline"],
+        s["body"],
+        "",
+        (
+            f"Übersicht ({s['total']} Artikel): "
+            f"{len(s['gap'])} teurer · {len(s['win'])} Bestpreis · {len(s['tie'])} gleichauf · "
+            f"{len(s['exclusive'])} nur CHIP Store · {len(s['missing'])} ohne Eintrag · {len(s['conflict'])} prüfen"
+        ),
+    ]
+    if s["gap"]:
+        lines += ["", "Größte Abstände zum günstigsten BestCheck-Angebot:"]
+        for r in s["gap"][:10]:
+            merchant = r["best"]["merchant"]
+            lines.append(
+                f"• {r['name']}: CHIP {eur(r['price'])} — günstigster {eur(r['best']['total'])} ({merchant}), +{eur(r['diff'])}"
+            )
+    if s["conflict"]:
+        lines += ["", f"{len(s['conflict'])} Datensätze vor Preisentscheidungen prüfen (Details im HTML/PDF)."]
+    lines += [
+        "",
+        f"Quelle: chipstore.de & bestcheck.de, {stamp} (Europe/Berlin). Endpreis inkl. Versand.",
+    ]
+    return "\n".join(lines)
+
+
+def render(groups, generated):
+    s = report_summary(groups)
+    gap, tie, win = s["gap"], s["tie"], s["win"]
+    exclusive, missing, conflict = s["exclusive"], s["missing"], s["conflict"]
+    total, gap_sum = s["total"], s["gap_sum"]
+    headline, body, top3 = s["headline"], s["body"], s["top3"]
     pct = lambda n: f"{(100 * n / total):.0f} %" if total else "0 %"
     colors = {"gap": "#d1555b", "win": "#3fb68b", "tie": "#5aa9e6", "exclusive": "#8e8db5", "missing": "#f2a650", "conflict": "#eccb48"}
     segs = [(len(gap), colors["gap"]), (len(win), colors["win"]), (len(tie), colors["tie"]),
@@ -409,7 +472,6 @@ def render(groups, generated):
     legend = [("Nicht Bestpreis", len(gap), colors["gap"]), ("Bestpreis", len(win), colors["win"]),
               ("Gleichauf", len(tie), colors["tie"]), ("Nur CHIP Store", len(exclusive), colors["exclusive"]),
               ("Kein BestCheck-Eintrag", len(missing), colors["missing"]), ("Daten prüfen", len(conflict), colors["conflict"])]
-    top3 = ", ".join(short_name(r["name"]) for r in gap[:3])
     max_diff = max((r["diff"] for r in gap), default=1)
 
     labels = [short_name(r["name"]) for r in gap]
@@ -437,11 +499,6 @@ def render(groups, generated):
         for t, paras in conflict_cards(conflict))
 
     stamp = generated.strftime("%d.%m.%Y, %H:%M Uhr")
-    headline = (f"Bei {len(gap)} von {total} Artikeln seid ihr nicht der günstigste Anbieter" if gap
-                else f"Bei allen vergleichbaren Artikeln liegt der CHIP Store vorn")
-    body = (f"Sobald BestCheck mindestens einen anderen Händler führt, liegt der CHIP Store bei {len(win)} Artikeln darunter, "
-            f"bei {len(tie)} gleichauf und bei {len(gap)} darüber. Die Abstände summieren sich ungewichtet auf {eur(gap_sum)}."
-            + (f" Am weitesten oben liegen {top3}." if gap else ""))
 
     def section(title, intro, head, rows):
         if not rows:
@@ -569,6 +626,7 @@ def print_pdf(html_path, pdf_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="output")
+    ap.add_argument("--no-pdf", action="store_true", help="Kein PDF erzeugen (nur HTML + Teams-Text)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     generated = datetime.now(BERLIN)
@@ -576,11 +634,23 @@ def main():
     stem = f"preischeck-{generated.strftime('%Y-%m-%d')}"
     html_path = os.path.join(args.out, stem + ".html")
     pdf_path = os.path.join(args.out, stem + ".pdf")
+    teams_path = os.path.join(args.out, stem + ".teams.txt")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(render(groups, generated))
-    print_pdf(html_path, pdf_path)
+    teams_text = render_teams_text(groups, generated)
+    with open(teams_path, "w", encoding="utf-8") as f:
+        f.write(teams_text)
+    if not args.no_pdf:
+        print_pdf(html_path, pdf_path)
     summary = {k: len(v) for k, v in groups.items()}
-    print(json.dumps({"html": html_path, "pdf": pdf_path, "counts": summary}, ensure_ascii=False))
+    payload = {
+        "html": html_path,
+        "teams_text": teams_path,
+        "counts": summary,
+    }
+    if not args.no_pdf:
+        payload["pdf"] = pdf_path
+    print(json.dumps(payload, ensure_ascii=False))
 
 
 if __name__ == "__main__":

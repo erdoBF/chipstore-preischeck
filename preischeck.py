@@ -397,11 +397,241 @@ def link(text, url):
     return f'<a href="{esc(url)}">{esc(text)}</a>' if url else esc(text)
 
 
-def render(groups, generated):
+def report_summary(groups):
     gap, tie, win = groups["gap"], groups["tie"], groups["win"]
     exclusive, missing, conflict = groups["exclusive"], groups["missing"], groups["conflict"]
     total = sum(len(v) for v in groups.values())
     gap_sum = sum(r["diff"] for r in gap)
+    top3 = ", ".join(short_name(r["name"]) for r in gap[:3])
+    headline = (
+        f"Bei {len(gap)} von {total} Artikeln seid ihr nicht der günstigste Anbieter"
+        if gap
+        else "Bei allen vergleichbaren Artikeln liegt der CHIP Store vorn"
+    )
+    body = (
+        f"Sobald BestCheck mindestens einen anderen Händler führt, liegt der CHIP Store bei {len(win)} Artikeln darunter, "
+        f"bei {len(tie)} gleichauf und bei {len(gap)} darüber. Die Abstände summieren sich ungewichtet auf {eur(gap_sum)}."
+        + (f" Am weitesten oben liegen {top3}." if gap else "")
+    )
+    return {
+        "gap": gap,
+        "tie": tie,
+        "win": win,
+        "exclusive": exclusive,
+        "missing": missing,
+        "conflict": conflict,
+        "total": total,
+        "gap_sum": gap_sum,
+        "headline": headline,
+        "body": body,
+        "top3": top3,
+    }
+
+
+TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢"}
+
+
+def teams_clip(text, width):
+    text = str(text or "")
+    if len(text) <= width:
+        return text + " " * (width - len(text))
+    if width <= 1:
+        return text[:width]
+    return text[: width - 1] + "…"
+
+
+def row_key(r):
+    return r.get("gtin") or r.get("sku") or r.get("url") or r["name"]
+
+
+def teams_product_labels(rows):
+    labels = [short_name(r["name"]) for r in rows]
+    out = []
+    for label, r in zip(labels, rows):
+        if labels.count(label) > 1:
+            label = f"{label[:14].rstrip()}… {eur(r['price'])}"
+        out.append(label)
+    return out
+
+
+def gap_change_status(r, prev_gap):
+    if not prev_gap:
+        return "red"
+    old = prev_gap.get(row_key(r))
+    if not old:
+        return "red"
+    same = (
+        abs(old.get("diff", 0) - r["diff"]) <= 0.01
+        and abs(old.get("price", 0) - r["price"]) <= 0.01
+        and abs(old.get("best_total", 0) - r["best"]["total"]) <= 0.01
+    )
+    return "yellow" if same else "red"
+
+
+def build_teams_state(groups, generated):
+    gap = {
+        row_key(r): {"price": r["price"], "diff": r["diff"], "best_total": r["best"]["total"]}
+        for r in groups["gap"]
+    }
+    win = {
+        row_key(r): {
+            "price": r["price"],
+            "advantage": round(-r["diff"], 2),
+            "next_total": r["best"]["total"],
+        }
+        for r in groups["win"]
+    }
+    return {"date": generated.strftime("%Y-%m-%d"), "gap": gap, "win": win}
+
+
+def load_teams_state(out_dir, generated):
+    today = generated.date()
+    latest_path, latest_day = None, None
+    if not os.path.isdir(out_dir):
+        return None
+    for name in os.listdir(out_dir):
+        m = re.match(r"preischeck-(\d{4}-\d{2}-\d{2})\.state\.json$", name)
+        if not m:
+            continue
+        day = datetime.strptime(m.group(1), "%Y-%m-%d").date()
+        if day >= today:
+            continue
+        if latest_day is None or day > latest_day:
+            latest_day = day
+            latest_path = os.path.join(out_dir, name)
+    if not latest_path:
+        return None
+    with open(latest_path, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def teams_gap_table(gap_rows, markers):
+    """Fixed-width table for Teams (Markdown tables are not rendered in channel chat)."""
+    w_prod, w_chip, w_best, w_shop, w_diff = 30, 12, 12, 18, 10
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_chip),
+            teams_clip("Günstigst.", w_best),
+            teams_clip("Händler", w_shop),
+            teams_clip("+Abstand", w_diff),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(gap_rows)
+    body = []
+    for label, r, mark in zip(labels, gap_rows, markers):
+        label = f"{TEAMS_MARK[mark]} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_chip),
+                    teams_clip(eur(r["best"]["total"]), w_best),
+                    teams_clip(r["best"]["merchant"], w_shop),
+                    teams_clip(f"+{eur(r['diff'])}", w_diff),
+                ]
+            )
+        )
+    return header, sep, body
+
+
+def teams_win_table(win_rows):
+    w_prod, w_chip, w_next, w_adv, w_shop = 30, 12, 12, 11, 18
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_chip),
+            teams_clip("Nächster", w_next),
+            teams_clip("Günstiger", w_adv),
+            teams_clip("Händler", w_shop),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(win_rows)
+    body = []
+    for label, r in zip(labels, win_rows):
+        label = f"{TEAMS_MARK['green']} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_chip),
+                    teams_clip(eur(r["best"]["total"]), w_next),
+                    teams_clip(eur(-r["diff"]), w_adv),
+                    teams_clip(r["best"]["merchant"], w_shop),
+                ]
+            )
+        )
+    return header, sep, body
+
+
+def render_teams_text(groups, generated, prev_state=None):
+    s = report_summary(groups)
+    stamp = generated.strftime("%d.%m.%Y")
+    prev_gap = (prev_state or {}).get("gap") or {}
+    prev_day = (prev_state or {}).get("date")
+    compare = f"Vergleich zum Vortag ({datetime.strptime(prev_day, '%Y-%m-%d').strftime('%d.%m.%Y')})." if prev_day else "Erster Lauf — alle Einträge in der Teurer-Tabelle gelten als neu."
+    lines = [
+        f"# Preischeck vom {stamp}",
+        "",
+        "## Kurzfassung",
+        f"**{s['headline']}**",
+        "",
+        s["body"],
+        "",
+        f"## Kennzahlen ({s['total']} Artikel)",
+        "",
+        f"- **Teurer als BestCheck:** {len(s['gap'])}",
+        f"- **Günstigstes Angebot:** {len(s['win'])}",
+        f"- **Geteilter Bestpreis:** {len(s['tie'])}",
+        f"- **Nur CHIP Store:** {len(s['exclusive'])}",
+        f"- **Ohne belastbaren Eintrag:** {len(s['missing'])}",
+        f"- **Datensätze prüfen:** {len(s['conflict'])}",
+        f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
+        "",
+        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · 🟢 Bestpreis_",
+    ]
+    if s["gap"]:
+        markers = [gap_change_status(r, prev_gap) for r in s["gap"]]
+        header, sep, rows = teams_gap_table(s["gap"], markers)
+        lines += [
+            "",
+            "## Teurer als BestCheck",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
+    if s["win"]:
+        header, sep, rows = teams_win_table(s["win"])
+        lines += [
+            "",
+            f"## Bestpreis, andere Händler sind teurer",
+            f"_{len(s['win'])} Artikel, sortiert nach dem Abstand zum nächstgünstigeren Angebot._",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
+    lines += [
+        "",
+        "---",
+        f"_Quelle: chipstore.de & bestcheck.de · Stand {stamp} (Europe/Berlin) · Endpreis inkl. Versand_",
+    ]
+    return "\n".join(lines)
+
+
+def render(groups, generated):
+    s = report_summary(groups)
+    gap, tie, win = s["gap"], s["tie"], s["win"]
+    exclusive, missing, conflict = s["exclusive"], s["missing"], s["conflict"]
+    total, gap_sum = s["total"], s["gap_sum"]
+    headline, body, top3 = s["headline"], s["body"], s["top3"]
     pct = lambda n: f"{(100 * n / total):.0f} %" if total else "0 %"
     colors = {"gap": "#d1555b", "win": "#3fb68b", "tie": "#5aa9e6", "exclusive": "#8e8db5", "missing": "#f2a650", "conflict": "#eccb48"}
     segs = [(len(gap), colors["gap"]), (len(win), colors["win"]), (len(tie), colors["tie"]),
@@ -409,7 +639,6 @@ def render(groups, generated):
     legend = [("Nicht Bestpreis", len(gap), colors["gap"]), ("Bestpreis", len(win), colors["win"]),
               ("Gleichauf", len(tie), colors["tie"]), ("Nur CHIP Store", len(exclusive), colors["exclusive"]),
               ("Kein BestCheck-Eintrag", len(missing), colors["missing"]), ("Daten prüfen", len(conflict), colors["conflict"])]
-    top3 = ", ".join(short_name(r["name"]) for r in gap[:3])
     max_diff = max((r["diff"] for r in gap), default=1)
 
     labels = [short_name(r["name"]) for r in gap]
@@ -437,11 +666,6 @@ def render(groups, generated):
         for t, paras in conflict_cards(conflict))
 
     stamp = generated.strftime("%d.%m.%Y, %H:%M Uhr")
-    headline = (f"Bei {len(gap)} von {total} Artikeln seid ihr nicht der günstigste Anbieter" if gap
-                else f"Bei allen vergleichbaren Artikeln liegt der CHIP Store vorn")
-    body = (f"Sobald BestCheck mindestens einen anderen Händler führt, liegt der CHIP Store bei {len(win)} Artikeln darunter, "
-            f"bei {len(tie)} gleichauf und bei {len(gap)} darüber. Die Abstände summieren sich ungewichtet auf {eur(gap_sum)}."
-            + (f" Am weitesten oben liegen {top3}." if gap else ""))
 
     def section(title, intro, head, rows):
         if not rows:
@@ -569,6 +793,7 @@ def print_pdf(html_path, pdf_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="output")
+    ap.add_argument("--no-pdf", action="store_true", help="Kein PDF erzeugen (nur HTML + Teams-Text)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
     generated = datetime.now(BERLIN)
@@ -576,11 +801,27 @@ def main():
     stem = f"preischeck-{generated.strftime('%Y-%m-%d')}"
     html_path = os.path.join(args.out, stem + ".html")
     pdf_path = os.path.join(args.out, stem + ".pdf")
+    teams_path = os.path.join(args.out, stem + ".teams.txt")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(render(groups, generated))
-    print_pdf(html_path, pdf_path)
+    prev_state = load_teams_state(args.out, generated)
+    teams_text = render_teams_text(groups, generated, prev_state)
+    with open(teams_path, "w", encoding="utf-8") as f:
+        f.write(teams_text)
+    state_path = os.path.join(args.out, stem + ".state.json")
+    with open(state_path, "w", encoding="utf-8") as f:
+        json.dump(build_teams_state(groups, generated), f, ensure_ascii=False, indent=2)
+    if not args.no_pdf:
+        print_pdf(html_path, pdf_path)
     summary = {k: len(v) for k, v in groups.items()}
-    print(json.dumps({"html": html_path, "pdf": pdf_path, "counts": summary}, ensure_ascii=False))
+    payload = {
+        "html": html_path,
+        "teams_text": teams_path,
+        "counts": summary,
+    }
+    if not args.no_pdf:
+        payload["pdf"] = pdf_path
+    print(json.dumps(payload, ensure_ascii=False))
 
 
 if __name__ == "__main__":

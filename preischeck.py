@@ -428,7 +428,7 @@ def report_summary(groups):
     }
 
 
-TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢"}
+TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
 
 
 def teams_clip(text, width):
@@ -566,6 +566,34 @@ def teams_win_table(win_rows):
     return header, sep, body
 
 
+def teams_tie_table(tie_rows):
+    """Gleicher Endpreis wie der günstigste andere Händler. Grauer Punkt, kein Tagesvergleich."""
+    w_prod, w_price, w_shop = 30, 12, 42
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("Endpreis", w_price),
+            teams_clip("Gleichauf mit", w_shop),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(tie_rows)
+    body = []
+    for label, r in zip(labels, tie_rows):
+        same = [o["merchant"] for o in r["others"] if abs(o["total"] - r["price"]) <= 0.01]
+        label = f"{TEAMS_MARK['gray']} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_price),
+                    teams_clip(", ".join(same[:4]), w_shop),
+                ]
+            )
+        )
+    return header, sep, body
+
+
 def render_teams_text(groups, generated, prev_state=None):
     s = report_summary(groups)
     stamp = generated.strftime("%d.%m.%Y")
@@ -590,7 +618,7 @@ def render_teams_text(groups, generated, prev_state=None):
         f"- **Datensätze prüfen:** {len(s['conflict'])}",
         f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
         "",
-        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · 🟢 Bestpreis_",
+        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · ⚪ geteilter Preis · 🟢 Bestpreis_",
     ]
     if s["gap"]:
         markers = [gap_change_status(r, prev_gap) for r in s["gap"]]
@@ -598,6 +626,19 @@ def render_teams_text(groups, generated, prev_state=None):
         lines += [
             "",
             "## Teurer als BestCheck",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
+    if s["tie"]:
+        header, sep, rows = teams_tie_table(s["tie"])
+        lines += [
+            "",
+            "## Geteilter Preis",
+            f"_{len(s['tie'])} Artikel. Der CHIP-Store-Endpreis ist der günstigste, andere Händler liegen auf demselben Betrag._",
             "",
             "```",
             header,

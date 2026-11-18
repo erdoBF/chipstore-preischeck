@@ -484,12 +484,12 @@ def build_teams_state(groups, generated):
     return {"date": generated.strftime("%Y-%m-%d"), "gap": gap, "win": win}
 
 
-def load_teams_state(out_dir, generated):
+def load_teams_state(state_dir, generated):
     today = generated.date()
     latest_path, latest_day = None, None
-    if not os.path.isdir(out_dir):
+    if not os.path.isdir(state_dir):
         return None
-    for name in os.listdir(out_dir):
+    for name in os.listdir(state_dir):
         m = re.match(r"preischeck-(\d{4}-\d{2}-\d{2})\.state\.json$", name)
         if not m:
             continue
@@ -498,7 +498,7 @@ def load_teams_state(out_dir, generated):
             continue
         if latest_day is None or day > latest_day:
             latest_day = day
-            latest_path = os.path.join(out_dir, name)
+            latest_path = os.path.join(state_dir, name)
     if not latest_path:
         return None
     with open(latest_path, encoding="utf-8") as f:
@@ -793,9 +793,11 @@ def print_pdf(html_path, pdf_path):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="output")
+    ap.add_argument("--state-dir", default="state", help="Ordner für .state.json (Tagesvergleich, versioniert)")
     ap.add_argument("--no-pdf", action="store_true", help="Kein PDF erzeugen (nur HTML + Teams-Text)")
     args = ap.parse_args()
     os.makedirs(args.out, exist_ok=True)
+    os.makedirs(args.state_dir, exist_ok=True)
     generated = datetime.now(BERLIN)
     groups = classify(collect())
     stem = f"preischeck-{generated.strftime('%Y-%m-%d')}"
@@ -804,11 +806,11 @@ def main():
     teams_path = os.path.join(args.out, stem + ".teams.txt")
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(render(groups, generated))
-    prev_state = load_teams_state(args.out, generated)
+    prev_state = load_teams_state(args.state_dir, generated)
     teams_text = render_teams_text(groups, generated, prev_state)
     with open(teams_path, "w", encoding="utf-8") as f:
         f.write(teams_text)
-    state_path = os.path.join(args.out, stem + ".state.json")
+    state_path = os.path.join(args.state_dir, stem + ".state.json")
     with open(state_path, "w", encoding="utf-8") as f:
         json.dump(build_teams_state(groups, generated), f, ensure_ascii=False, indent=2)
     if not args.no_pdf:
@@ -817,6 +819,7 @@ def main():
     payload = {
         "html": html_path,
         "teams_text": teams_path,
+        "state": state_path,
         "counts": summary,
     }
     if not args.no_pdf:

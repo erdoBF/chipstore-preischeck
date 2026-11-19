@@ -37,17 +37,30 @@ KNOWN_CONFLICTS = {
 }
 
 
-def fetch(url, timeout=40, retries=3):
+def fetch(url, timeout=40, retries=5):
     last = None
     for attempt in range(retries):
         try:
             req = Request(url, headers={"User-Agent": UA, "Accept-Language": "de-DE,de;q=0.9"})
             with urlopen(req, timeout=timeout) as r:
+                if "/maintenance" in r.geturl():
+                    raise URLError("Shop im Wartungsmodus")
                 return r.read()
         except (HTTPError, URLError, TimeoutError, OSError) as e:
             last = e
-            time.sleep(0.8 * (attempt + 1))
+            if attempt < retries - 1:
+                time.sleep(min(2 * 2 ** attempt, 20))
     raise last
+
+
+def code_version():
+    """Short git hash of the checked-out code, printed in the report so a stale checkout is visible."""
+    try:
+        out = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=os.path.dirname(os.path.abspath(__file__)),
+                             capture_output=True, text=True, timeout=10)
+        return out.stdout.strip() or "unbekannt"
+    except Exception:
+        return "unbekannt"
 
 
 def euro_value(value):
@@ -97,7 +110,7 @@ def walk_products(node, acc):
             walk_products(v, acc)
 
 
-def product_urls():
+def sitemap_urls():
     index = fetch(SITEMAP_INDEX).decode("utf-8", "replace")
     maps = re.findall(r"<loc>(.*?)</loc>", index)
     urls = []
@@ -109,6 +122,25 @@ def product_urls():
             freq = re.search(r"<changefreq>(.*?)</changefreq>", chunk)
             if loc and freq and freq.group(1) == "hourly":
                 urls.append(loc.group(1))
+    if not urls:
+        raise RuntimeError("Sitemap enthält keine Produkt-URLs")
+    return urls
+
+
+def product_urls(state_dir):
+    """Live sitemap first. During shop maintenance the sitemap redirects, then the last known list is used."""
+    cache = os.path.join(state_dir, "product-urls.json")
+    try:
+        urls = sitemap_urls()
+    except Exception as e:
+        if not os.path.exists(cache):
+            raise SystemExit(f"Sitemap nicht abrufbar ({e}) und keine gespeicherte URL-Liste vorhanden. Es wird nichts gesendet.")
+        with open(cache, encoding="utf-8") as f:
+            urls = json.load(f)["urls"]
+        print(f"Sitemap nicht abrufbar ({e}). Verwende gespeicherte Liste mit {len(urls)} URLs.", file=sys.stderr)
+        return urls
+    with open(cache, "w", encoding="utf-8") as f:
+        json.dump({"urls": urls}, f, ensure_ascii=False, indent=0)
     return urls
 
 
@@ -180,13 +212,17 @@ def match(product):
     gtin = product["gtin"]
     if not gtin:
         return None
+    errors = 0
     for item in bc_search(gtin)[:6]:
         try:
             confirmed = confirm_frontend(item, gtin)
         except Exception:
+            errors += 1
             continue
         if confirmed:
             return confirmed
+    if errors:
+        raise RuntimeError("BestCheck-Produktseite nicht abrufbar")
     return None
 
 
@@ -240,16 +276,37 @@ def long_delivery(text):
     return bool(nums) and max(nums) >= 10 and "Werktag" in (text or "")
 
 
-def collect():
-    urls = product_urls()
+MAX_FAILURE_SHARE = 0.10
+
+
+def ensure_shop_online():
+    try:
+        fetch("https://www.chipstore.de/", retries=3)
+    except Exception as e:
+        raise SystemExit(f"chipstore.de ist nicht abrufbar ({e}). Der Bericht wäre unvollständig. Es wird nichts gesendet.")
+
+
+def collect(state_dir="state"):
+    ensure_shop_online()
+    urls = product_urls(state_dir)
     products = []
-    with ThreadPoolExecutor(max_workers=8) as ex:
-        for fut in as_completed([ex.submit(lambda u: (u, fetch(u)), u) for u in urls]):
+    shop_failed = 0
+    limit = max(5, int(MAX_FAILURE_SHARE * len(urls)))
+    with ThreadPoolExecutor(max_workers=4) as ex:
+        futures = [ex.submit(lambda u: (u, fetch(u, retries=3)), u) for u in urls]
+        for fut in as_completed(futures):
             try:
                 u, raw = fut.result()
                 products.extend(parse_shop_page(u, raw))
             except Exception as e:
-                print("Shop-Seite übersprungen:", e, file=sys.stderr)
+                shop_failed += 1
+                print("Shop-Seite nicht abrufbar:", e, file=sys.stderr)
+                if shop_failed > limit:
+                    for f in futures:
+                        f.cancel()
+                    raise SystemExit(
+                        f"{shop_failed} CHIP-Store-Seiten nicht abrufbar. Der Bericht wäre unvollständig. Es wird nichts gesendet."
+                    )
     unique = {}
     for p in products:
         key = p["sku"] or p["gtin"] or p["url"]
@@ -257,24 +314,41 @@ def collect():
             unique[key] = p
     products = list(unique.values())
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         futs = {ex.submit(match, p): p for p in products}
         for fut in as_completed(futs):
             try:
                 futs[fut]["bc"] = fut.result()
             except Exception:
                 futs[fut]["bc"] = None
+                futs[fut]["lookup_failed"] = True
 
-    with ThreadPoolExecutor(max_workers=5) as ex:
+    with ThreadPoolExecutor(max_workers=4) as ex:
         futs = {ex.submit(bc_offers, p["bc"]["id"]): p for p in products if p.get("bc")}
         for fut in as_completed(futs):
             try:
                 futs[fut]["offers"] = fut.result()
             except Exception:
                 futs[fut]["offers"] = []
+                futs[fut]["lookup_failed"] = True
     for p in products:
         p.setdefault("offers", [])
-    return products
+
+    failed = [p for p in products if p.get("lookup_failed")]
+    stats = {
+        "urls": len(urls),
+        "shop_failed": shop_failed,
+        "lookup_failed": len(failed),
+        "failed_names": [p["name"] for p in failed],
+    }
+    bad = shop_failed + len(failed)
+    if bad > MAX_FAILURE_SHARE * max(len(urls), 1):
+        raise SystemExit(
+            f"Zu viele Abrufe fehlgeschlagen ({shop_failed} CHIP-Store-Seiten, {len(failed)} BestCheck-Abrufe von {len(urls)} Produkten). "
+            "Der Bericht wäre unvollständig. Es wird nichts gesendet."
+        )
+    products = [p for p in products if not p.get("lookup_failed")]
+    return products, stats
 
 
 def classify(products):
@@ -638,14 +712,21 @@ def teams_missing_table(rows):
     return header, sep, body
 
 
-def render_teams_text(groups, generated, prev_state=None):
+def render_teams_text(groups, generated, prev_state=None, stats=None):
     s = report_summary(groups)
     stamp = generated.strftime("%d.%m.%Y")
+    incomplete = []
+    if stats and (stats["shop_failed"] or stats["lookup_failed"]):
+        incomplete = [
+            f"⚠ {stats['shop_failed'] + stats['lookup_failed']} von {stats['urls']} Produkten konnten heute nicht abgerufen werden und fehlen im Bericht."
+        ]
     prev_gap = (prev_state or {}).get("gap") or {}
     prev_day = (prev_state or {}).get("date")
     compare = f"Vergleich zum Vortag ({datetime.strptime(prev_day, '%Y-%m-%d').strftime('%d.%m.%Y')})." if prev_day else "Erster Lauf — alle Einträge in der Teurer-Tabelle gelten als neu."
     lines = [
         f"# Preischeck vom {stamp}",
+        f"_Code-Version: {code_version()}_",
+        *([""] + incomplete if incomplete else []),
         "",
         "## Kurzfassung",
         f"**{s['headline']}**",
@@ -897,7 +978,8 @@ def main():
     os.makedirs(args.out, exist_ok=True)
     os.makedirs(args.state_dir, exist_ok=True)
     generated = datetime.now(BERLIN)
-    groups = classify(collect())
+    products, stats = collect(args.state_dir)
+    groups = classify(products)
     stem = f"preischeck-{generated.strftime('%Y-%m-%d')}"
     html_path = os.path.join(args.out, stem + ".html")
     pdf_path = os.path.join(args.out, stem + ".pdf")
@@ -905,7 +987,7 @@ def main():
     with open(html_path, "w", encoding="utf-8") as f:
         f.write(render(groups, generated))
     prev_state = load_teams_state(args.state_dir, generated)
-    teams_text = render_teams_text(groups, generated, prev_state)
+    teams_text = render_teams_text(groups, generated, prev_state, stats)
     with open(teams_path, "w", encoding="utf-8") as f:
         f.write(teams_text)
     state_path = os.path.join(args.state_dir, stem + ".state.json")
@@ -918,7 +1000,9 @@ def main():
         "html": html_path,
         "teams_text": teams_path,
         "state": state_path,
+        "code_version": code_version(),
         "counts": summary,
+        "failed": {"shop": stats["shop_failed"], "bestcheck": stats["lookup_failed"], "of": stats["urls"]},
     }
     if not args.no_pdf:
         payload["pdf"] = pdf_path

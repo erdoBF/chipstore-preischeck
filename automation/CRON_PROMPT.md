@@ -1,20 +1,30 @@
 # Cursor Automation — täglicher Preischeck → Teams
 
-Diesen Text als **Automation-Prompt** (Cron) verwenden. Branch: `main`.
+Diesen Text als **Automation-Prompt** (Cron) verwenden. Repository `erdoBF/chipstore-preischeck`, Branch `main`.
 
 ```
 Arbeite im Repository erdoBF/chipstore-preischeck auf Branch main.
 
-1) python3 preischeck.py --out output --state-dir state --no-pdf
-   Bei Meldung, dass Chrome/Chromium fehlt: nicht installieren (--no-pdf braucht kein Chrome).
+1) Immer zuerst den neuesten Code holen, auch wenn schon ein Checkout vorhanden ist:
+   git fetch origin main
+   git checkout main
+   git reset --hard origin/main
+   Verwende niemals eine alte Kopie von preischeck.py, auch keine aus Notizen oder Memories.
 
-2) Wenn der Befehl fehlschlägt oder die Datei output/preischeck-JJJJ-MM-TT.teams.txt fehlt oder leer ist: nichts senden, abbrechen.
+2) python3 preischeck.py --out output --state-dir state --no-pdf
+   Chrome/Chromium nicht installieren (--no-pdf braucht keins).
 
-3) Lies output/preischeck-JJJJ-MM-TT.teams.txt (Datum heute, Zeitzone Europe/Berlin, Format YYYY-MM-DD).
-   Sende den kompletten Dateiinhalt genau einmal per send_microsoft_teams_message in den konfigurierten Teams-Kanal.
-   Keine eigene Zusammenfassung, kein „Demo“-Prefix, kein PDF.
+3) Prüfe, bevor du sendest:
+   - Der Befehl endete mit Exit-Code 0.
+   - Die Datei output/preischeck-JJJJ-MM-TT.teams.txt existiert (Datum heute in Europe/Berlin).
+   - In der zweiten Zeile der Datei steht „Code-Version: <hash>“, und <hash> ist gleich der Ausgabe von git rev-parse --short HEAD.
+   - Die Datei enthält die Überschrift „## Auf Bestcheck nicht gelistet“ oder die Kennzahl „Auf Bestcheck nicht gelistet“.
+   Ist eine Prüfung nicht erfüllt, oder endete der Befehl mit einem Fehler: Sende die Auswertung nicht. Schicke stattdessen genau diese eine Zeile per Teams-Werkzeug: „Preischeck vom TT.MM.JJJJ nicht erstellt: <erste Fehlermeldung des Programms oder die nicht erfüllte Prüfung>“. Beende danach den Lauf.
 
-4) Committe state/preischeck-JJJJ-MM-TT.state.json auf main (nur diese State-Datei, falls neu/geändert) und pushe, damit der Tagesvergleich (🔴/🟡) beim nächsten Lauf funktioniert. Keine anderen Dateien unter output/ committen.
+4) Sende den kompletten Inhalt von output/preischeck-JJJJ-MM-TT.teams.txt genau einmal mit dem Teams-Werkzeug in den konfigurierten Kanal.
+   Keine eigene Zusammenfassung, keine eigene Tabelle, kein „Demo“-Präfix, kein PDF.
 
-Am Programm, am HTML/PDF-Layout und an den Report-Texten nichts ändern, außer der Nutzer fordert es ausdrücklich.
+5) Committe state/preischeck-JJJJ-MM-TT.state.json und state/product-urls.json auf main (nur diese Dateien, falls neu oder geändert) und pushe. So funktioniert der Tagesvergleich (🔴/🟡) beim nächsten Lauf. Keine Dateien unter output/ committen.
+
+Ändere nichts am Programm, am Layout und an den Texten.
 ```

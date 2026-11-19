@@ -30,8 +30,16 @@ Reihenfolge der Tabellen:
 
 Der Tagesvergleich liest `state/preischeck-JJJJ-MM-TT.state.json` vom Vortag. Die Automation speichert die neue Datei auf `main`.
 
+## Zuverlässigkeit
+
+- **Code-Version:** Die zweite Zeile der Teams-Nachricht zeigt `Code-Version: <hash>`. Das ist der Git-Hash des Codes, der den Bericht erzeugt hat. Steht dort nicht der aktuelle Hash von `main`, lief der Bericht auf einer alten Kopie.
+- **Neuester Code:** Der Automation-Prompt (`automation/CRON_PROMPT.md`) holt zuerst `git fetch origin main` und `git reset --hard origin/main`. So läuft nie ein veralteter Checkout.
+- **Unvollständige Daten:** Seiten, die nicht abrufbar sind, werden nicht mehr stillschweigend übersprungen und nicht mehr als „nicht gelistet“ oder „einziger Anbieter“ gewertet. Fehlen bis zu 10 % der Produkte, steht oben in der Nachricht „⚠ n von N Produkten konnten heute nicht abgerufen werden“, und diese Produkte fehlen im Bericht. Fehlen mehr, endet das Programm mit Fehler und die Automation sendet nur eine Zeile „nicht erstellt“.
+- **Wartungsmodus:** Ist chipstore.de im Wartungsmodus, bricht das Programm nach wenigen Sekunden ab. Ist nur die Sitemap nicht erreichbar, nutzt es die zuletzt gespeicherte Liste `state/product-urls.json`.
+
 ## Änderungen am 19. November 2026
 
+- Code-Version in der Nachricht, Zuverlässigkeitsprüfungen (siehe oben) und `git reset --hard origin/main` am Anfang des Automation-Prompts. Anlass: Der Lauf von 10:01 Uhr hat eine alte Programmversion benutzt (Kaufland 76,59 € und dieTechnik 179,90 € standen noch im Bericht) und nur 73 statt rund 100 Artikel verglichen, weil der Shop nicht durchgehend erreichbar war.
 - Aussteller und Vorführgeräte werden vor dem Vergleich entfernt. dieTechnik (Händler-ID 1120) wird immer ausgelassen, weil dieser Shop Aussteller führt. Beim Ecovacs WINBOT mini 2 bleibt Cyberport mit 199,00 € der nächste Händler, nicht dieTechnik mit 179,90 €.
 - Falsche Suchtreffer ohne EAN auf der BestCheck-Seite werden nicht mehr verglichen. Die Mobile Inverter Klima fällt dadurch aus dem Vergleich mit Kaufland.
 - Vierte Teams-Tabelle „Auf Bestcheck nicht gelistet“ mit schwarzem Punkt.

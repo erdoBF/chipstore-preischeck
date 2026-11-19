@@ -188,6 +188,15 @@ def match(product):
     return None
 
 
+def is_display_offer(offer):
+    """Floor models and demo units are not comparable to new CHIP Store goods."""
+    text = " ".join(
+        str(offer.get(key) or "")
+        for key in ("description", "delivery_time", "retailer")
+    ).lower()
+    return bool(re.search(r"aussteller|ausstellung|vorf[uü]hr", text))
+
+
 def bc_offers(pid):
     offers, offset = [], 0
     while offset < 200:
@@ -200,6 +209,8 @@ def bc_offers(pid):
         offset += len(data)
     out = []
     for o in offers:
+        if is_display_offer(o):
+            continue
         price = euro_value(o.get("price"))
         ship = euro_value(o.get("shipping_costs"))
         if price is None:

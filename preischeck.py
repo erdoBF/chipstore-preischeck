@@ -165,26 +165,26 @@ def bc_search(query):
     return items
 
 
-def bc_page_has_gtin(pid, gtin):
-    text = fetch(f"https://www.bestcheck.de/{pid}/").decode("utf-8", "replace")
+def confirm_frontend(item, gtin):
+    """A hit counts only when the BestCheck product page shows this EAN and a price comparison."""
+    text = fetch(f"https://www.bestcheck.de/{item['id']}/").decode("utf-8", "replace")
+    if gtin not in text or "Preisvergleich zu" not in text:
+        return None
     can = re.search(r'rel="canonical" href="([^"]+)"', text)
-    return gtin in text, (can.group(1) if can else f"https://www.bestcheck.de/{pid}/")
+    return {**item, "url": can.group(1) if can else item["url"]}
 
 
 def match(product):
     gtin = product["gtin"]
     if not gtin:
         return None
-    items = bc_search(gtin)
-    if len(items) == 1:
-        return items[0]
-    for item in items[:5]:
+    for item in bc_search(gtin)[:6]:
         try:
-            ok, url = bc_page_has_gtin(item["id"], gtin)
+            confirmed = confirm_frontend(item, gtin)
         except Exception:
             continue
-        if ok:
-            return {**item, "url": url}
+        if confirmed:
+            return confirmed
     return None
 
 
@@ -297,7 +297,7 @@ def classify(products):
             groups["conflict"].append({**p, "kind": "known", "text": KNOWN_CONFLICTS[p["gtin"]]})
             continue
         if not p.get("bc"):
-            reason = "EAN bei BestCheck ohne Treffer" if p["gtin"] else "Keine EAN, kein eindeutiger Treffer"
+            reason = "Im BestCheck-Frontend nicht gelistet" if p["gtin"] else "Keine EAN, im Frontend nicht zuordenbar"
             groups["missing"].append({**p, "reason": reason})
             continue
         if not others:
@@ -439,7 +439,7 @@ def report_summary(groups):
     }
 
 
-TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
+TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪", "black": "⚫"}
 
 
 def teams_clip(text, width):
@@ -605,6 +605,32 @@ def teams_tie_table(tie_rows):
     return header, sep, body
 
 
+def teams_missing_table(rows):
+    w_prod, w_price, w_why = 34, 12, 42
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_price),
+            teams_clip("Grund", w_why),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(rows)
+    body = []
+    for label, r in zip(labels, rows):
+        label = f"{TEAMS_MARK['black']} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_price),
+                    teams_clip(r.get("reason") or "Im BestCheck-Frontend nicht gelistet", w_why),
+                ]
+            )
+        )
+    return header, sep, body
+
+
 def render_teams_text(groups, generated, prev_state=None):
     s = report_summary(groups)
     stamp = generated.strftime("%d.%m.%Y")
@@ -625,11 +651,11 @@ def render_teams_text(groups, generated, prev_state=None):
         f"- **Günstigstes Angebot:** {len(s['win'])}",
         f"- **Geteilter Bestpreis:** {len(s['tie'])}",
         f"- **Nur CHIP Store:** {len(s['exclusive'])}",
-        f"- **Ohne belastbaren Eintrag:** {len(s['missing'])}",
+        f"- **Auf Bestcheck nicht gelistet:** {len(s['missing'])}",
         f"- **Datensätze prüfen:** {len(s['conflict'])}",
         f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
         "",
-        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · ⚪ geteilter Preis · 🟢 Bestpreis_",
+        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · ⚪ geteilter Preis · 🟢 Bestpreis · ⚫ nicht gelistet_",
     ]
     if s["gap"]:
         markers = [gap_change_status(r, prev_gap) for r in s["gap"]]
@@ -663,6 +689,19 @@ def render_teams_text(groups, generated, prev_state=None):
             "",
             f"## Bestpreis, andere Händler sind teurer",
             f"_{len(s['win'])} Artikel, sortiert nach dem Abstand zum nächstgünstigeren Angebot._",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
+    if s["missing"]:
+        header, sep, rows = teams_missing_table(s["missing"])
+        lines += [
+            "",
+            "## Auf Bestcheck nicht gelistet",
+            f"_{len(s['missing'])} Artikel. Für sie gibt es keine sichtbare BestCheck-Produktseite mit dieser EAN._",
             "",
             "```",
             header,

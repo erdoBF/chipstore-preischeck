@@ -11,7 +11,7 @@ python3 preischeck.py --out output --state-dir state --no-pdf
 - Sortiment: alle Produkt-URLs der CHIP-Store-Sitemap mit `changefreq` hourly. Preis, Streichpreis und EAN kommen aus dem JSON-LD der Produktseite. Der CHIP-Store-Preis ist versandfrei und damit der Endpreis.
 - BestCheck: Suche über die EAN. Ein Treffer gilt nur, wenn die Produktseite im Frontend diese EAN zeigt und einen Block „Preisvergleich zu …“ hat. Ein einzelner Suchtreffer ohne diese Prüfung wird verworfen.
 - Angebote kommen von `https://www.bestcheck.de/api/product/{id}/offers/`. Endpreis = Artikelpreis plus ausgewiesene Versandkosten.
-- Aussteller, Ausstellungsware und Vorführgeräte (erkannt am Angebotstext) zählen nicht mit.
+- Aussteller, Ausstellungsware und Vorführgeräte zählen nicht mit. Der Händler dieTechnik wird immer ausgelassen, auch wenn die BestCheck-Seite das Wort „Aussteller“ nicht anzeigt. Beim WINBOT mini 2 folgt danach Cyberport.
 
 ## Warum die Suche allein nicht reicht
 
@@ -32,6 +32,6 @@ Der Tagesvergleich liest `state/preischeck-JJJJ-MM-TT.state.json` vom Vortag. Di
 
 ## Änderungen am 19. November 2026
 
-- Aussteller und Vorführgeräte werden vor dem Vergleich entfernt. Der WINBOT MINI 2 von dieTechnik für 179,90 € ist so ein Aussteller und zählt nicht mehr als günstigeres Angebot.
+- Aussteller und Vorführgeräte werden vor dem Vergleich entfernt. dieTechnik (Händler-ID 1120) wird immer ausgelassen, weil dieser Shop Aussteller führt. Beim Ecovacs WINBOT mini 2 bleibt Cyberport mit 199,00 € der nächste Händler, nicht dieTechnik mit 179,90 €.
 - Falsche Suchtreffer ohne EAN auf der BestCheck-Seite werden nicht mehr verglichen. Die Mobile Inverter Klima fällt dadurch aus dem Vergleich mit Kaufland.
 - Vierte Teams-Tabelle „Auf Bestcheck nicht gelistet“ mit schwarzem Punkt.

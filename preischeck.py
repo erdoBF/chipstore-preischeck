@@ -27,6 +27,8 @@ UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chr
 SITEMAP_INDEX = "https://www.chipstore.de/sitemap.xml"
 BERLIN = ZoneInfo("Europe/Berlin")
 CHIP_MERCHANT_ID = "1161"
+# dieTechnik lists display units. The shop name on the BestCheck page does not say "Aussteller".
+IGNORED_MERCHANT_IDS = {"1120"}
 
 # EAN conflicts that cannot be detected from the data alone.
 KNOWN_CONFLICTS = {
@@ -190,6 +192,11 @@ def match(product):
 
 def is_display_offer(offer):
     """Floor models and demo units are not comparable to new CHIP Store goods."""
+    if str(offer.get("merchant_id") or "") in IGNORED_MERCHANT_IDS:
+        return True
+    merchant = re.sub(r"[^a-z]", "", (offer.get("merchant_name") or "").lower())
+    if merchant == "dietechnik":
+        return True
     text = " ".join(
         str(offer.get(key) or "")
         for key in ("description", "delivery_time", "retailer")

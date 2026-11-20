@@ -21,14 +21,28 @@ Der Samsung Galaxy Z Flip8 256GB bleibt vergleichbar: seine EAN steht auf der Be
 
 ## Teams-Nachricht
 
+Die farbigen Punkte stehen in der Teams-Nachricht. Verglichen wird mit der letzten State-Datei vor dem heutigen Datum (`state/preischeck-JJJJ-MM-TT.state.json`). Die Automation speichert die neue Datei auf `main`. Ein Produkt, das gestern in `win` stand, war grün (Bestpreis CHIP). Ein Produkt in `gap` war teurer als BestCheck, egal ob der Punkt rot oder gelb war.
+
 Reihenfolge der Tabellen:
 
-1. **Teurer als BestCheck**, roter Punkt bei neuen oder geänderten Abständen, gelber Punkt wenn der Abstand zum Vortag gleich ist.
-2. **Geteilter Preis**, weißer Punkt. Der CHIP-Endpreis ist der günstigste, andere Händler liegen gleichauf.
-3. **Bestpreis, andere Händler sind teurer**, grüner Punkt.
-4. **Auf Bestcheck nicht gelistet**, schwarzer Punkt. Keine sichtbare BestCheck-Seite mit dieser EAN.
+1. **Teurer als BestCheck**
+2. **Geteilter Preis**
+3. **Bestpreis, andere Händler sind teurer**
+4. **Auf Bestcheck nicht gelistet**
 
-Der Tagesvergleich liest `state/preischeck-JJJJ-MM-TT.state.json` vom Vortag. Die Automation speichert die neue Datei auf `main`.
+### Farblogik
+
+Teams hat keinen dunkleren roten und keinen dunkleren grünen Punkt als 🔴 und 🟢. Deshalb gilt:
+
+- 🔴 **Bestpreis verloren** ist dunkelrot und das bisherige Rot. Gestern Bestpreis beim CHIP Store, heute ist der Bestpreis woanders.
+- 🟠 **neu/geändert** ist das bisherige Rot, heller. Der Artikel ist neu in der Teurer-Tabelle oder CHIP-Preis, Abstand oder günstigster Endpreis haben sich geändert, und gestern war er nicht Bestpreis.
+- 🟡 **unverändert**: gleicher CHIP-Preis, gleicher Abstand, gleicher günstigster Endpreis wie beim letzten Lauf.
+- ⚪ **geteilter Preis**: der CHIP-Endpreis ist der günstigste, andere Händler liegen auf demselben Betrag. Auch dann, wenn der Artikel gestern grün oder teurer war.
+- 🟢 **Bestpreis gewonnen** ist dunkelgrün und das bisherige Grün. Gestern lag der Bestpreis woanders, heute ist CHIP günstiger.
+- 🟩 **Bestpreis**: CHIP ist günstiger als der nächste Händler, und der Artikel war gestern nicht in der Teurer-Tabelle. Einen helleren grünen Punkt gibt es nicht, deshalb das grüne Quadrat.
+- ⚫ **nicht gelistet**: keine sichtbare BestCheck-Seite mit dieser EAN. Auch dann, wenn der Artikel gestern teurer oder Bestpreis war.
+
+Beim ersten Lauf ohne State-Datei gibt es kein Dunkelrot und kein Dunkelgrün. Jede Zeile in „Teurer als BestCheck“ ist neu/geändert.
 
 ## Zuverlässigkeit
 
@@ -43,3 +57,8 @@ Der Tagesvergleich liest `state/preischeck-JJJJ-MM-TT.state.json` vom Vortag. Di
 - Aussteller und Vorführgeräte werden vor dem Vergleich entfernt. dieTechnik (Händler-ID 1120) wird immer ausgelassen, weil dieser Shop Aussteller führt. Beim Ecovacs WINBOT mini 2 bleibt Cyberport mit 199,00 € der nächste Händler, nicht dieTechnik mit 179,90 €.
 - Falsche Suchtreffer ohne EAN auf der BestCheck-Seite werden nicht mehr verglichen. Die Mobile Inverter Klima fällt dadurch aus dem Vergleich mit Kaufland.
 - Vierte Teams-Tabelle „Auf Bestcheck nicht gelistet“ mit schwarzem Punkt.
+
+## Änderungen am 20. November 2026
+
+- Wechsel der Preislage zum Vortag: gestern Bestpreis und heute teurer wird dunkelrot (🔴), gestern teurer und heute Bestpreis wird dunkelgrün (🟢). Beide stehen in der Legende.
+- Teams hat keinen dunkleren Punkt als das bisherige Rot und Grün. Dunkelrot und dunkelgrün sind deshalb 🔴 und 🟢. „neu/geändert“ ist der hellere Punkt 🟠, der normale Bestpreis das grüne Quadrat 🟩.

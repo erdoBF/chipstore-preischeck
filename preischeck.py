@@ -520,7 +520,20 @@ def report_summary(groups):
     }
 
 
-TEAMS_MARK = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪", "black": "⚫"}
+# Teams zeichnet nur diese farbigen Punkte: 🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚫ ⚪.
+# Einen dunkleren roten oder grünen Punkt gibt es nicht.
+# Dunkelrot ist deshalb das bisherige Rot, „neu/geändert“ der nächste hellere Punkt.
+# Dunkelgrün ist das bisherige Grün. Einen helleren grünen Punkt gibt es nicht;
+# der normale Bestpreis nutzt das grüne Quadrat, damit beide Grüntöne auseinanderzuhalten sind.
+TEAMS_MARK = {
+    "dark_red": "🔴",
+    "red": "🟠",
+    "yellow": "🟡",
+    "gray": "⚪",
+    "dark_green": "🟢",
+    "green": "🟩",
+    "black": "⚫",
+}
 
 
 def teams_clip(text, width):
@@ -558,6 +571,43 @@ def gap_change_status(r, prev_gap):
         and abs(old.get("best_total", 0) - r["best"]["total"]) <= 0.01
     )
     return "yellow" if same else "red"
+
+
+def gap_mark(r, prev_gap, prev_win):
+    """Punkt in „Teurer als BestCheck“.
+
+    Dunkelrot: gestern Bestpreis (in win), heute teurer.
+    Gelb: gleicher CHIP-Preis, gleicher Abstand, gleicher günstigster Endpreis.
+    Rot: neu oder geändert, und gestern nicht Bestpreis.
+    """
+    if prev_win and row_key(r) in prev_win:
+        return "dark_red"
+    return gap_change_status(r, prev_gap)
+
+
+def win_mark(r, prev_gap):
+    """Punkt in „Bestpreis“.
+
+    Dunkelgrün: gestern teurer (in gap, rot oder gelb), heute Bestpreis.
+    Grün: Bestpreis, gestern nicht in der Teurer-Tabelle.
+    """
+    if prev_gap and row_key(r) in prev_gap:
+        return "dark_green"
+    return "green"
+
+
+def teams_legend(compare):
+    marks = TEAMS_MARK
+    parts = [
+        f"{marks['dark_red']} Bestpreis verloren",
+        f"{marks['red']} neu/geändert",
+        f"{marks['yellow']} unverändert",
+        f"{marks['gray']} geteilter Preis",
+        f"{marks['dark_green']} Bestpreis gewonnen",
+        f"{marks['green']} Bestpreis",
+        f"{marks['black']} nicht gelistet",
+    ]
+    return f"_{compare} " + " · ".join(parts) + "_"
 
 
 def build_teams_state(groups, generated):
@@ -628,7 +678,7 @@ def teams_gap_table(gap_rows, markers):
     return header, sep, body
 
 
-def teams_win_table(win_rows):
+def teams_win_table(win_rows, markers):
     w_prod, w_chip, w_next, w_adv, w_shop = 30, 12, 12, 11, 18
     header = "  ".join(
         [
@@ -642,8 +692,8 @@ def teams_win_table(win_rows):
     sep = "-" * len(header)
     labels = teams_product_labels(win_rows)
     body = []
-    for label, r in zip(labels, win_rows):
-        label = f"{TEAMS_MARK['green']} {label}"
+    for label, r, mark in zip(labels, win_rows, markers):
+        label = f"{TEAMS_MARK[mark]} {label}"
         body.append(
             "  ".join(
                 [
@@ -721,8 +771,9 @@ def render_teams_text(groups, generated, prev_state=None, stats=None):
             f"⚠ {stats['shop_failed'] + stats['lookup_failed']} von {stats['urls']} Produkten konnten heute nicht abgerufen werden und fehlen im Bericht."
         ]
     prev_gap = (prev_state or {}).get("gap") or {}
+    prev_win = (prev_state or {}).get("win") or {}
     prev_day = (prev_state or {}).get("date")
-    compare = f"Vergleich zum Vortag ({datetime.strptime(prev_day, '%Y-%m-%d').strftime('%d.%m.%Y')})." if prev_day else "Erster Lauf — alle Einträge in der Teurer-Tabelle gelten als neu."
+    compare = f"Vergleich zum Vortag ({datetime.strptime(prev_day, '%Y-%m-%d').strftime('%d.%m.%Y')})." if prev_day else "Erster Lauf — alle Einträge in der Teurer-Tabelle gelten als neu/geändert."
     lines = [
         f"# Preischeck vom {stamp}",
         f"_Code-Version: {code_version()}_",
@@ -743,10 +794,10 @@ def render_teams_text(groups, generated, prev_state=None, stats=None):
         f"- **Datensätze prüfen:** {len(s['conflict'])}",
         f"- **Summe Abstände (teurer):** {eur(s['gap_sum'])}",
         "",
-        f"_{compare} 🔴 neu/geändert · 🟡 unverändert · ⚪ geteilter Preis · 🟢 Bestpreis · ⚫ nicht gelistet_",
+        teams_legend(compare),
     ]
     if s["gap"]:
-        markers = [gap_change_status(r, prev_gap) for r in s["gap"]]
+        markers = [gap_mark(r, prev_gap, prev_win) for r in s["gap"]]
         header, sep, rows = teams_gap_table(s["gap"], markers)
         lines += [
             "",
@@ -772,7 +823,8 @@ def render_teams_text(groups, generated, prev_state=None, stats=None):
             "```",
         ]
     if s["win"]:
-        header, sep, rows = teams_win_table(s["win"])
+        markers = [win_mark(r, prev_gap) for r in s["win"]]
+        header, sep, rows = teams_win_table(s["win"], markers)
         lines += [
             "",
             f"## Bestpreis, andere Händler sind teurer",

@@ -41,14 +41,14 @@ def win_row(name, gtin, price, next_total):
     }
 
 
-def groups(gap, win, tie=None, missing=None):
+def groups(gap, win, tie=None, missing=None, conflict=None):
     return {
         "gap": gap,
         "win": win,
         "tie": tie or [],
         "exclusive": [],
         "missing": missing or [],
-        "conflict": [],
+        "conflict": conflict or [],
     }
 
 
@@ -156,6 +156,38 @@ class MarkTests(unittest.TestCase):
         self.assertIn(f"{m['green']} Frisch Guenstig", text)
         self.assertNotIn(f"{m['dark_red']} Ganz Neu", text)
         self.assertNotIn(f"{m['dark_green']} Frisch Guenstig", text)
+
+    def test_conflict_table(self):
+        conflict = [
+            {
+                "name": "Preis Konflikt",
+                "gtin": "CONFLICT1",
+                "sku": "",
+                "url": "",
+                "price": 99.0,
+                "kind": "price_mismatch",
+                "bc": {"id": 1, "url": "https://example.com"},
+                "offers": [{"chip": True, "price": 89.0}],
+                "chip_offer": {"price": 89.0, "updated": "2026-01-01"},
+            },
+            {
+                "name": "Nicht Auf BC",
+                "gtin": "CONFLICT2",
+                "sku": "",
+                "url": "",
+                "price": 12.0,
+                "kind": "known",
+                "text": "Testhinweis",
+                "bc": {"id": 2, "url": "https://example.com"},
+                "offers": [{"chip": False, "price": 10.0, "merchant": "Otto"}],
+            },
+        ]
+        generated = datetime(2026, 11, 20, 8, 0, tzinfo=BERLIN)
+        text = preischeck.render_teams_text(groups([], [], conflict=conflict), generated, None)
+        m = preischeck.TEAMS_MARK
+        self.assertIn("## Datensätze prüfen", text)
+        self.assertIn("Preis Konflikt", text)
+        self.assertIn(f"{m['black']} Nicht Auf BC", text)
 
 
 if __name__ == "__main__":

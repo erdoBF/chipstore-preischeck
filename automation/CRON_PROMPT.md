@@ -19,6 +19,7 @@ Arbeite im Repository erdoBF/chipstore-preischeck auf Branch main.
    - Die Datei output/preischeck-JJJJ-MM-TT.teams.txt existiert (Datum heute in Europe/Berlin).
    - In der zweiten Zeile der Datei steht „Code-Version: <hash>“, und <hash> ist gleich der Ausgabe von git rev-parse --short HEAD.
    - Die Datei enthält die Überschrift „## Auf Bestcheck nicht gelistet“ oder die Kennzahl „Auf Bestcheck nicht gelistet“.
+   - Steht bei „Datensätze prüfen“ eine Zahl größer 0, enthält die Datei die Überschrift „## Datensätze prüfen“.
    - Die Legende enthält „Bestpreis verloren“ und „Bestpreis gewonnen“.
    Ist eine Prüfung nicht erfüllt, oder endete der Befehl mit einem Fehler: Sende die Auswertung nicht. Schicke stattdessen genau diese eine Zeile per Teams-Werkzeug: „Preischeck vom TT.MM.JJJJ nicht erstellt: <erste Fehlermeldung des Programms oder die nicht erfüllte Prüfung>“. Beende danach den Lauf.
 

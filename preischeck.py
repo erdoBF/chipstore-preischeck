@@ -736,6 +736,57 @@ def teams_tie_table(tie_rows):
     return header, sep, body
 
 
+def conflict_short_reason(c):
+    if c["kind"] == "bware":
+        new = c.get("cheapest_new")
+        tail = f" Neu ab {eur(new['total'])}" if new else ""
+        return f"B-Ware im Shop, BestCheck Neuware-Seite{tail}"
+    if c["kind"] == "shared_ean":
+        return "Mehrere CHIP-Preise mit gleicher EAN"
+    if c["kind"] == "price_mismatch":
+        offer = c.get("chip_offer")
+        if offer:
+            return f"Shop {eur(c['price'])} vs BestCheck CHIP {eur(offer['price'])}"
+        return "Shop-Preis weicht vom BestCheck-Eintrag ab"
+    if c["kind"] == "known":
+        return c.get("text") or "Bekannter Datenkonflikt"
+    return "Manuell prüfen"
+
+
+def conflict_not_listed(c):
+    if not c.get("bc"):
+        return True
+    chip_offer = c.get("chip_offer") or next((o for o in c.get("offers", []) if o.get("chip")), None)
+    return bool(c.get("offers")) and not chip_offer
+
+
+def teams_conflict_table(rows):
+    w_prod, w_price, w_why = 34, 12, 42
+    header = "  ".join(
+        [
+            teams_clip("Produkt", w_prod),
+            teams_clip("CHIP", w_price),
+            teams_clip("Hinweis", w_why),
+        ]
+    )
+    sep = "-" * len(header)
+    labels = teams_product_labels(rows)
+    body = []
+    for label, r in zip(labels, rows):
+        if conflict_not_listed(r):
+            label = f"{TEAMS_MARK['black']} {label}"
+        body.append(
+            "  ".join(
+                [
+                    teams_clip(label, w_prod),
+                    teams_clip(eur(r["price"]), w_price),
+                    teams_clip(conflict_short_reason(r), w_why),
+                ]
+            )
+        )
+    return header, sep, body
+
+
 def teams_missing_table(rows):
     w_prod, w_price, w_why = 34, 12, 42
     header = "  ".join(
@@ -842,6 +893,20 @@ def render_teams_text(groups, generated, prev_state=None, stats=None):
             "",
             "## Auf Bestcheck nicht gelistet",
             f"_{len(s['missing'])} Artikel. Für sie gibt es keine sichtbare BestCheck-Produktseite mit dieser EAN._",
+            "",
+            "```",
+            header,
+            sep,
+            *rows,
+            "```",
+        ]
+    if s["conflict"]:
+        conflicts = sorted(s["conflict"], key=lambda r: r["name"].casefold())
+        header, sep, rows = teams_conflict_table(conflicts)
+        lines += [
+            "",
+            "## Datensätze prüfen",
+            f"_{len(conflicts)} Artikel mit widersprüchlichen oder nicht vergleichbaren Daten — vor einer Preisentscheidung manuell klären._",
             "",
             "```",
             header,

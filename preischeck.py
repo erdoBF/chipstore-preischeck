@@ -495,6 +495,13 @@ def link(text, url):
     return f'<a href="{esc(url)}">{esc(text)}</a>' if url else esc(text)
 
 
+def name_cell(r, url=None):
+    text = esc(r["name"])
+    if is_highlight(r["name"]):
+        text = f"<b>{text}</b>"
+    return f'<a href="{esc(url)}">{text}</a>' if url else text
+
+
 def report_summary(groups):
     gap, tie, win = groups["gap"], groups["tie"], groups["win"]
     exclusive, missing, conflict = groups["exclusive"], groups["missing"], groups["conflict"]
@@ -556,12 +563,26 @@ def row_key(r):
     return r.get("gtin") or r.get("sku") or r.get("url") or r["name"]
 
 
+HIGHLIGHT_RE = re.compile(r"\b(winbot|enzo)\b", re.IGNORECASE)
+_TEAMS_BOLD = str.maketrans({
+    **{c: chr(0x1D400 + i) for i, c in enumerate("ABCDEFGHIJKLMNOPQRSTUVWXYZ")},
+    **{c: chr(0x1D41A + i) for i, c in enumerate("abcdefghijklmnopqrstuvwxyz")},
+    **{c: chr(0x1D7CE + i) for i, c in enumerate("0123456789")},
+})
+
+
+def is_highlight(name):
+    return bool(HIGHLIGHT_RE.search(name or ""))
+
+
 def teams_product_labels(rows):
     labels = [short_name(r["name"]) for r in rows]
     out = []
     for label, r in zip(labels, rows):
         if labels.count(label) > 1:
             label = f"{label[:14].rstrip()}… {eur(r['price'])}"
+        if is_highlight(r["name"]):
+            label = label.translate(_TEAMS_BOLD)
         out.append(label)
     return out
 
@@ -952,18 +973,18 @@ def render(groups, generated):
         f'<span class="bv">{eur(r["diff"])}</span></span></div>' for label, r in zip(labels, gap))
 
     gap_rows = "".join(
-        f'<tr><td class="dot red">{link(r["name"], r["url"])}</td><td class="n">{eur(r["price"])}</td>'
+        f'<tr><td class="dot red">{name_cell(r, r["url"])}</td><td class="n">{eur(r["price"])}</td>'
         f'<td class="n">{link(eur(r["best"]["total"]) + " · " + r["best"]["merchant"], r["bc"]["url"])}</td>'
         f'<td class="n">+{eur(r["diff"])}</td><td class="n">{len(r["others"])}</td><td>{esc(gap_note(r))}</td></tr>' for r in gap)
     tie_rows = "".join(
-        f'<tr><td class="dot blue">{link(r["name"], r["url"])}</td><td class="n">{eur(r["price"])}</td><td>{esc(tie_note(r))}</td></tr>' for r in tie)
+        f'<tr><td class="dot blue">{name_cell(r, r["url"])}</td><td class="n">{eur(r["price"])}</td><td>{esc(tie_note(r))}</td></tr>' for r in tie)
     win_rows = "".join(
-        f'<tr><td class="dot green">{esc(r["name"])}</td><td class="n">{eur(r["price"])}</td><td class="n">{eur(r["best"]["total"])}</td>'
+        f'<tr><td class="dot green">{name_cell(r)}</td><td class="n">{eur(r["price"])}</td><td class="n">{eur(r["best"]["total"])}</td>'
         f'<td class="n">{eur(-r["diff"])}</td><td>{esc(win_note(r))}</td></tr>' for r in win)
     excl_rows = "".join(
-        f'<tr><td>{esc(r["name"])}</td><td class="n">{eur(r["price"])}</td><td class="n">{eur(r["list_price"])}</td></tr>' for r in exclusive)
+        f'<tr><td>{name_cell(r)}</td><td class="n">{eur(r["price"])}</td><td class="n">{eur(r["list_price"])}</td></tr>' for r in exclusive)
     miss_rows = "".join(
-        f'<tr><td>{esc(r["name"])}</td><td class="n">{eur(r["price"])}</td><td>{esc(r["reason"])}</td></tr>' for r in missing)
+        f'<tr><td>{name_cell(r)}</td><td class="n">{eur(r["price"])}</td><td>{esc(r["reason"])}</td></tr>' for r in missing)
     cards = "".join(
         f'<div class="card"><div class="ch">{esc(t)}</div>' + "".join(f"<p>{esc(x)}</p>" for x in paras) + "</div>"
         for t, paras in conflict_cards(conflict))

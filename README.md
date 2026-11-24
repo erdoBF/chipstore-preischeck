@@ -30,8 +30,6 @@ Reihenfolge der Tabellen:
 3. **Bestpreis, andere Händler sind teurer**
 4. **Auf Bestcheck nicht gelistet**
 
-Produkte, deren Name das Wort „WINBOT“ oder „Enzo“ enthält (Groß-/Kleinschreibung egal), stehen fett. In der HTML-Datei ist der Name fett. In der Teams-Nachricht wird der Name in fettem Unicode-Text geschrieben, weil Markdown-Fett in einem Codeblock nicht angezeigt wird.
-
 In jeder Tabelle stehen die Produkte alphabetisch. Groß- und Kleinschreibung spielt keine Rolle, ä/ö/ü zählen wie a/o/u, ß wie ss. Der Satz zu den größten Abständen in der Kurzfassung bleibt nach Betrag sortiert.
 
 ### Farblogik

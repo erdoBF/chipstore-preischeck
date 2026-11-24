@@ -1,65 +1,50 @@
 {
   "date": "2026-11-24",
   "gap": {
-    "8806099191832": {
-      "price": 1049.0,
-      "diff": 300.0,
-      "best_total": 749.0
+    "6972596108818": {
+      "price": 119.0,
+      "diff": 5.1,
+      "best_total": 113.9
     },
-    "8806099120498": {
-      "price": 2199.0,
-      "diff": 200.0,
-      "best_total": 1999.0
-    },
-    "8806099133535": {
-      "price": 1199.0,
-      "diff": 200.0,
-      "best_total": 999.0
-    },
-    "6970135036271": {
-      "price": 449.0,
-      "diff": 159.01,
-      "best_total": 289.99
-    },
-    "0840493618555": {
-      "price": 699.0,
-      "diff": 126.01,
-      "best_total": 572.99
+    "6972596108948": {
+      "price": 219.0,
+      "diff": 2.3,
+      "best_total": 216.7
     },
     "6970135033836": {
       "price": 379.0,
       "diff": 44.05,
       "best_total": 334.95
     },
-    "4011689585951": {
-      "price": 269.0,
-      "diff": 15.05,
-      "best_total": 253.95
-    },
-    "6935670504555": {
-      "price": 529.0,
-      "diff": 10.0,
-      "best_total": 519.0
-    },
     "6953281008071": {
       "price": 169.0,
       "diff": 10.0,
       "best_total": 159.0
     },
-    "8885020629606": {
-      "price": 99.99,
-      "diff": 6.0,
-      "best_total": 93.99
+    "0840493618555": {
+      "price": 699.0,
+      "diff": 126.01,
+      "best_total": 572.99
     },
-    "4011689485350": {
-      "price": 74.99,
-      "diff": 5.99,
-      "best_total": 69.0
+    "8806099133535": {
+      "price": 1199.0,
+      "diff": 200.0,
+      "best_total": 999.0
     },
-    "6972596108818": {
-      "price": 119.0,
-      "diff": 5.1,
-      "best_total": 113.9
+    "8806099120498": {
+      "price": 2199.0,
+      "diff": 200.0,
+      "best_total": 1999.0
+    },
+    "8806099191832": {
+      "price": 1049.0,
+      "diff": 300.0,
+      "best_total": 749.0
+    },
+    "6970135036271": {
+      "price": 449.0,
+      "diff": 159.01,
+      "best_total": 289.99
     },
     "8885020629576": {
       "price": 89.0,
@@ -71,212 +56,227 @@
       "diff": 4.95,
       "best_total": 94.05
     },
-    "6972596108948": {
-      "price": 219.0,
-      "diff": 2.3,
-      "best_total": 216.7
+    "8885020629606": {
+      "price": 99.99,
+      "diff": 6.0,
+      "best_total": 93.99
+    },
+    "4011689585951": {
+      "price": 269.0,
+      "diff": 15.05,
+      "best_total": 253.95
+    },
+    "4011689485350": {
+      "price": 74.99,
+      "diff": 5.99,
+      "best_total": 69.0
+    },
+    "6935670504555": {
+      "price": 529.0,
+      "diff": 10.0,
+      "best_total": 519.0
     }
   },
   "win": {
+    "8712412571260": {
+      "price": 79.99,
+      "advantage": 13.95,
+      "next_total": 93.94
+    },
     "195950488852": {
       "price": 1429.0,
       "advantage": 555.95,
       "next_total": 1984.95
-    },
-    "4046373950524": {
-      "price": 1499.0,
-      "advantage": 350.0,
-      "next_total": 1849.0
-    },
-    "8806095494517": {
-      "price": 549.0,
-      "advantage": 136.99,
-      "next_total": 685.99
-    },
-    "6974434224292": {
-      "price": 279.0,
-      "advantage": 125.99,
-      "next_total": 404.99
-    },
-    "7630997913033": {
-      "price": 699.0,
-      "advantage": 100.0,
-      "next_total": 799.0
-    },
-    "8711902080862": {
-      "price": 249.0,
-      "advantage": 56.9,
-      "next_total": 305.9
-    },
-    "5060409604594": {
-      "price": 179.0,
-      "advantage": 50.99,
-      "next_total": 229.99
-    },
-    "4011689863202": {
-      "price": 499.0,
-      "advantage": 50.0,
-      "next_total": 549.0
-    },
-    "4011689488764": {
-      "price": 229.0,
-      "advantage": 37.67,
-      "next_total": 266.67
-    },
-    "8711902079163": {
-      "price": 79.99,
-      "advantage": 36.99,
-      "next_total": 116.98
-    },
-    "4011689489754": {
-      "price": 199.0,
-      "advantage": 34.9,
-      "next_total": 233.9
-    },
-    "4011689924262": {
-      "price": 89.0,
-      "advantage": 34.4,
-      "next_total": 123.4
-    },
-    "810123675227": {
-      "price": 149.0,
-      "advantage": 33.85,
-      "next_total": 182.85
-    },
-    "9005151007961": {
-      "price": 149.0,
-      "advantage": 32.0,
-      "next_total": 181.0
-    },
-    "4011689689161": {
-      "price": 229.0,
-      "advantage": 30.99,
-      "next_total": 259.99
-    },
-    "5011423010816": {
-      "price": 179.0,
-      "advantage": 30.21,
-      "next_total": 209.21
     },
     "9005151002188": {
       "price": 179.99,
       "advantage": 24.96,
       "next_total": 204.95
     },
-    "4011689487859": {
-      "price": 79.0,
-      "advantage": 24.08,
-      "next_total": 103.08
+    "4046373950524": {
+      "price": 1499.0,
+      "advantage": 350.0,
+      "next_total": 1849.0
     },
     "4062983000688": {
       "price": 24.0,
       "advantage": 21.99,
       "next_total": 45.99
     },
-    "4211125101770": {
-      "price": 49.99,
-      "advantage": 20.99,
-      "next_total": 70.98
-    },
-    "8711902105954": {
-      "price": 329.0,
-      "advantage": 20.99,
-      "next_total": 349.99
-    },
-    "6970135030590": {
-      "price": 129.0,
-      "advantage": 19.99,
-      "next_total": 148.99
-    },
-    "5060409604129": {
-      "price": 159.9,
-      "advantage": 19.1,
-      "next_total": 179.0
-    },
-    "4016432424495": {
-      "price": 99.0,
-      "advantage": 15.99,
-      "next_total": 114.99
-    },
-    "4011689865367": {
-      "price": 69.0,
-      "advantage": 15.9,
-      "next_total": 84.9
-    },
-    "4011689782756": {
-      "price": 79.0,
-      "advantage": 15.9,
-      "next_total": 94.9
-    },
-    "8712412571260": {
-      "price": 79.99,
-      "advantage": 13.95,
-      "next_total": 93.94
-    },
-    "4011689688850": {
-      "price": 99.0,
-      "advantage": 11.4,
-      "next_total": 110.4
-    },
-    "8711902091790": {
-      "price": 179.0,
-      "advantage": 10.98,
-      "next_total": 189.98
-    },
-    "5060409605539": {
-      "price": 89.9,
-      "advantage": 10.09,
-      "next_total": 99.99
-    },
-    "6942103189685": {
+    "810123675227": {
       "price": 149.0,
-      "advantage": 9.95,
-      "next_total": 158.95
-    },
-    "1210002615198": {
-      "price": 139.0,
-      "advantage": 8.9,
-      "next_total": 147.9
-    },
-    "4011689684562": {
-      "price": 99.0,
-      "advantage": 7.02,
-      "next_total": 106.02
-    },
-    "4011689860201": {
-      "price": 39.0,
-      "advantage": 6.9,
-      "next_total": 45.9
-    },
-    "4011689865350": {
-      "price": 69.0,
-      "advantage": 6.84,
-      "next_total": 75.84
-    },
-    "5412810444175": {
-      "price": 49.99,
-      "advantage": 4.25,
-      "next_total": 54.24
+      "advantage": 33.85,
+      "next_total": 182.85
     },
     "6970135038725": {
       "price": 399.0,
       "advantage": 4.0,
       "next_total": 403.0
     },
-    "6932485009008": {
+    "4011689924262": {
+      "price": 89.0,
+      "advantage": 34.4,
+      "next_total": 123.4
+    },
+    "6970135030590": {
+      "price": 129.0,
+      "advantage": 19.99,
+      "next_total": 148.99
+    },
+    "4016432424495": {
+      "price": 99.0,
+      "advantage": 15.99,
+      "next_total": 114.99
+    },
+    "6942103189685": {
+      "price": 149.0,
+      "advantage": 9.95,
+      "next_total": 158.95
+    },
+    "8711902091790": {
+      "price": 179.0,
+      "advantage": 10.98,
+      "next_total": 189.98
+    },
+    "5011423010816": {
+      "price": 179.0,
+      "advantage": 30.21,
+      "next_total": 209.21
+    },
+    "3016661172625": {
+      "price": 299.0,
+      "advantage": 0.99,
+      "next_total": 299.99
+    },
+    "8711902079163": {
+      "price": 79.99,
+      "advantage": 36.99,
+      "next_total": 116.98
+    },
+    "8711902080862": {
+      "price": 249.0,
+      "advantage": 56.9,
+      "next_total": 305.9
+    },
+    "8711902105954": {
       "price": 329.0,
-      "advantage": 3.9,
-      "next_total": 332.9
+      "advantage": 20.99,
+      "next_total": 349.99
+    },
+    "5060409604594": {
+      "price": 179.0,
+      "advantage": 50.99,
+      "next_total": 229.99
+    },
+    "5060409604129": {
+      "price": 159.9,
+      "advantage": 19.1,
+      "next_total": 179.0
+    },
+    "5060409605539": {
+      "price": 89.9,
+      "advantage": 10.09,
+      "next_total": 99.99
+    },
+    "1210002615198": {
+      "price": 139.0,
+      "advantage": 8.9,
+      "next_total": 147.9
+    },
+    "5412810444175": {
+      "price": 49.99,
+      "advantage": 4.25,
+      "next_total": 54.24
     },
     "5412810450831": {
       "price": 29.99,
       "advantage": 2.91,
       "next_total": 32.9
     },
-    "3016661172625": {
-      "price": 299.0,
-      "advantage": 0.99,
-      "next_total": 299.99
+    "6974434224292": {
+      "price": 279.0,
+      "advantage": 125.99,
+      "next_total": 404.99
+    },
+    "8806095494517": {
+      "price": 549.0,
+      "advantage": 136.99,
+      "next_total": 685.99
+    },
+    "4211125101770": {
+      "price": 49.99,
+      "advantage": 20.99,
+      "next_total": 70.98
+    },
+    "9005151007961": {
+      "price": 149.0,
+      "advantage": 32.0,
+      "next_total": 181.0
+    },
+    "7630997913033": {
+      "price": 699.0,
+      "advantage": 100.0,
+      "next_total": 799.0
+    },
+    "6932485009008": {
+      "price": 329.0,
+      "advantage": 3.9,
+      "next_total": 332.9
+    },
+    "4011689684562": {
+      "price": 99.0,
+      "advantage": 7.02,
+      "next_total": 106.02
+    },
+    "4011689489754": {
+      "price": 199.0,
+      "advantage": 34.9,
+      "next_total": 233.9
+    },
+    "4011689488764": {
+      "price": 229.0,
+      "advantage": 37.67,
+      "next_total": 266.67
+    },
+    "4011689865350": {
+      "price": 69.0,
+      "advantage": 6.84,
+      "next_total": 75.84
+    },
+    "4011689865367": {
+      "price": 69.0,
+      "advantage": 15.9,
+      "next_total": 84.9
+    },
+    "4011689688850": {
+      "price": 99.0,
+      "advantage": 11.4,
+      "next_total": 110.4
+    },
+    "4011689863202": {
+      "price": 499.0,
+      "advantage": 50.0,
+      "next_total": 549.0
+    },
+    "4011689689161": {
+      "price": 229.0,
+      "advantage": 30.99,
+      "next_total": 259.99
+    },
+    "4011689487859": {
+      "price": 79.0,
+      "advantage": 24.08,
+      "next_total": 103.08
+    },
+    "4011689782756": {
+      "price": 79.0,
+      "advantage": 15.9,
+      "next_total": 94.9
+    },
+    "4011689860201": {
+      "price": 39.0,
+      "advantage": 6.9,
+      "next_total": 45.9
     }
   }
 }

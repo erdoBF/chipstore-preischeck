@@ -58,6 +58,41 @@ class SortTests(unittest.TestCase):
         self.assertTrue(summary["top3"].startswith("Zulu"))
         self.assertIn("Mitte", summary["top3"])
 
+    def test_sort_follows_the_displayed_name_without_brand_prefix(self):
+        products = [
+            item(1, "Samsung Galaxy Z", 150, 100),
+            item(2, "Unold Backmeister", 150, 100),
+            item(3, "ECOVACS DEEBOT T80", 150, 100),
+            item(4, "Amazfit Balance", 150, 100),
+            item(5, "TP-Link Tapo C460", 150, 100),
+        ]
+        groups = preischeck.classify(products)
+        self.assertEqual(
+            [r["name"] for r in groups["gap"]],
+            ["Amazfit Balance", "Unold Backmeister", "ECOVACS DEEBOT T80", "Samsung Galaxy Z", "TP-Link Tapo C460"],
+        )
+
+    def test_winbot_and_enzo_come_first(self):
+        products = [
+            item(1, "Alpha Gerät", 150, 100),
+            item(2, "Pizzaofen Enzo", 150, 100),
+            item(3, "Zeta WINBOT W3", 150, 100),
+            item(4, "Beta Gerät", 150, 100),
+            item(5, "winbot mini 2", 150, 100),
+            item(6, "Lorenzo Gerät", 150, 100),
+            item(7, "Cosori", 40, 50),
+            item(8, "Enzo Mini", 40, 50),
+            item(9, "Ohne Liste", 9, listed=False),
+            item(10, "WINBOT Ersatz", 9, listed=False),
+        ]
+        groups = preischeck.classify(products)
+        self.assertEqual(
+            [r["name"] for r in groups["gap"]],
+            ["Pizzaofen Enzo", "winbot mini 2", "Zeta WINBOT W3", "Alpha Gerät", "Beta Gerät", "Lorenzo Gerät"],
+        )
+        self.assertEqual([r["name"] for r in groups["win"]], ["Enzo Mini", "Cosori"])
+        self.assertEqual([r["name"] for r in groups["missing"]], ["WINBOT Ersatz", "Ohne Liste"])
+
 
 if __name__ == "__main__":
     unittest.main()

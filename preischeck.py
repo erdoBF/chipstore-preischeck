@@ -351,6 +351,19 @@ def collect(state_dir="state"):
     return products, stats
 
 
+PRIORITY_RE = re.compile(r"\b(winbot|enzo)\b", re.IGNORECASE)
+
+
+def is_priority(name):
+    """WINBOT- und Enzo-Produkte stehen in jeder Tabelle oben."""
+    return bool(PRIORITY_RE.search(name or ""))
+
+
+def table_sort_key(r):
+    name = r.get("name") or ""
+    return (not is_priority(name), product_name_key(display_name(name)))
+
+
 def classify(products):
     by_gtin = {}
     for p in products:
@@ -395,7 +408,7 @@ def classify(products):
             groups["win"].append(row)
 
     for rows in groups.values():
-        rows.sort(key=lambda r: product_name_key(r.get("name")))
+        rows.sort(key=table_sort_key)
     return groups
 
 
@@ -485,9 +498,14 @@ def product_name_key(name):
     return str(name or "").casefold().translate(_NAME_FOLD)
 
 
-def short_name(name):
+def display_name(name):
+    """Name ohne Herstellerpräfix, so wie er in der Teams-Tabelle beginnt."""
     name = re.sub(r"^(Fensterputzroboter|Saugroboter|ECOVACS|Ecovacs|SAMSUNG|Samsung|TP-Link|UNOLD|Unold)\s+", "", name)
-    name = re.sub(r"^(ECOVACS|Ecovacs|Fensterputzroboter)\s+", "", name)
+    return re.sub(r"^(ECOVACS|Ecovacs|Fensterputzroboter)\s+", "", name)
+
+
+def short_name(name):
+    name = display_name(name)
     return name if len(name) <= 22 else name[:21] + "…"
 
 
@@ -886,7 +904,7 @@ def render_teams_text(groups, generated, prev_state=None, stats=None):
         lines += [
             "",
             f"## Bestpreis, andere Händler sind teurer",
-            f"_{len(s['win'])} Artikel, alphabetisch nach Produktname._",
+            f"_{len(s['win'])} Artikel, WINBOT und Enzo zuerst, danach alphabetisch nach Produktname._",
             "",
             "```",
             header,
@@ -1043,7 +1061,7 @@ a {{ color: #1d1d1f; text-decoration: underline; text-decoration-color: #bbb; }}
 <div class="page2">
 {section("Diese Preise sind nicht der Bestpreis", "", '<th>Produkt</th><th class="n">CHIP Store</th><th class="n">Günstigster Endpreis</th><th class="n">Abstand</th><th class="n">Andere Händler</th><th>Hinweis</th>', gap_rows)}
 {section("Geteilter Bestpreis", "Bei diesen Artikeln ist der CHIP-Store-Endpreis der günstigste, andere Händler liegen auf demselben Betrag.", '<th>Produkt</th><th class="n">Endpreis</th><th>Lage</th>', tie_rows)}
-{section("Bestpreis, andere Händler sind teurer", f"{len(win)} Artikel, alphabetisch nach Produktname.", '<th>Produkt</th><th class="n">CHIP Store</th><th class="n">Nächster Endpreis</th><th class="n">Günstiger um</th><th>Händler</th>', win_rows)}
+{section("Bestpreis, andere Händler sind teurer", f"{len(win)} Artikel, WINBOT und Enzo zuerst, danach alphabetisch nach Produktname.", '<th>Produkt</th><th class="n">CHIP Store</th><th class="n">Nächster Endpreis</th><th class="n">Günstiger um</th><th>Händler</th>', win_rows)}
 <div class="two">
   <div>{section("Nur der CHIP Store auf BestCheck", "BestCheck zeigt keinen zweiten Händler. Der Preis ist dort das einzige Angebot, ein Marktvergleich fehlt.", '<th>Produkt</th><th class="n">Preis</th><th class="n">Streichpreis</th>', excl_rows)}</div>
   <div>{section("Kein belastbarer BestCheck-Eintrag", "Zu diesen Artikeln lässt sich auf BestCheck nichts sagen.", '<th>Produkt</th><th class="n">Preis</th><th>Grund</th>', miss_rows)}</div>

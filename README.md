@@ -30,7 +30,7 @@ Reihenfolge der Tabellen:
 3. **Bestpreis, andere Händler sind teurer**
 4. **Auf Bestcheck nicht gelistet**
 
-In jeder Tabelle stehen die Produkte alphabetisch. Groß- und Kleinschreibung spielt keine Rolle, ä/ö/ü zählen wie a/o/u, ß wie ss. Der Satz zu den größten Abständen in der Kurzfassung bleibt nach Betrag sortiert.
+In jeder Tabelle stehen zuerst die Produkte mit dem Wort „WINBOT“ oder „Enzo“ im Namen (Groß-/Kleinschreibung egal, nur ganze Wörter), danach alle übrigen. Beide Gruppen sind alphabetisch sortiert. Groß- und Kleinschreibung spielt keine Rolle, ä/ö/ü zählen wie a/o/u, ß wie ss. Der Satz zu den größten Abständen in der Kurzfassung bleibt nach Betrag sortiert.
 
 ### Farblogik
 
@@ -68,3 +68,4 @@ Beim ersten Lauf ohne State-Datei gibt es kein Dunkelrot und kein Dunkelgrün. J
 ## Änderungen am 24. November 2026
 
 - Produkte in jeder Tabelle stehen alphabetisch. ä/ö/ü zählen wie a/o/u, ß wie ss, Groß- und Kleinschreibung ist egal. Die drei größten Abstände in der Kurzfassung bleiben nach Betrag geordnet.
+- WINBOT- und Enzo-Produkte stehen in jeder Tabelle an erster Stelle, danach der Rest alphabetisch. Die kurz zuvor eingeführte Fettschrift für diese Produkte ist zurückgenommen.

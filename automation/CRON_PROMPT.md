@@ -25,6 +25,7 @@ Arbeite im Repository erdoBF/chipstore-preischeck auf Branch main.
 
 4) Sende den kompletten Inhalt von output/preischeck-JJJJ-MM-TT.teams.txt genau einmal mit dem Teams-Werkzeug in den konfigurierten Kanal.
    Keine eigene Zusammenfassung, keine eigene Tabelle, kein „Demo“-Präfix, kein PDF.
+   Die Produktzeilen sind bereits alphabetisch sortiert. Die Reihenfolge nicht ändern.
 
 5) Committe state/preischeck-JJJJ-MM-TT.state.json und state/product-urls.json auf main (nur diese Dateien, falls neu oder geändert) und pushe. So funktioniert der Tagesvergleich (🔴 Bestpreis verloren, 🟠 neu/geändert, 🟡 unverändert, 🟢 Bestpreis gewonnen) beim nächsten Lauf. Keine Dateien unter output/ committen.
 

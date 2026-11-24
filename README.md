@@ -30,6 +30,8 @@ Reihenfolge der Tabellen:
 3. **Bestpreis, andere Händler sind teurer**
 4. **Auf Bestcheck nicht gelistet**
 
+In jeder Tabelle stehen die Produkte alphabetisch. Groß- und Kleinschreibung spielt keine Rolle, ä/ö/ü zählen wie a/o/u, ß wie ss. Der Satz zu den größten Abständen in der Kurzfassung bleibt nach Betrag sortiert.
+
 ### Farblogik
 
 Teams hat keinen dunkleren roten und keinen dunkleren grünen Punkt als 🔴 und 🟢. Deshalb gilt:
@@ -62,3 +64,7 @@ Beim ersten Lauf ohne State-Datei gibt es kein Dunkelrot und kein Dunkelgrün. J
 
 - Wechsel der Preislage zum Vortag: gestern Bestpreis und heute teurer wird dunkelrot (🔴), gestern teurer und heute Bestpreis wird dunkelgrün (🟢). Beide stehen in der Legende.
 - Teams hat keinen dunkleren Punkt als das bisherige Rot und Grün. Dunkelrot und dunkelgrün sind deshalb 🔴 und 🟢. „neu/geändert“ ist der hellere Punkt 🟠, der normale Bestpreis das grüne Quadrat 🟩.
+
+## Änderungen am 24. November 2026
+
+- Produkte in jeder Tabelle stehen alphabetisch. ä/ö/ü zählen wie a/o/u, ß wie ss, Groß- und Kleinschreibung ist egal. Die drei größten Abstände in der Kurzfassung bleiben nach Betrag geordnet.
